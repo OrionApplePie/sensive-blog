@@ -1,6 +1,7 @@
 from django.shortcuts import render
 
 from blog.models import Post, Tag
+from django.db.models import Count, Prefetch
 
 
 def get_related_posts_count(tag):
@@ -17,7 +18,8 @@ def serialize_post(post):
         "published_at": post.published_at,
         "slug": post.slug,
         "tags": [
-            serialize_tag_optimized(tag) for tag in post.tags.fetch_with_post_count()
+            serialize_tag_optimized(tag)
+            for tag in post.tags.annotate(posts_count=Count("posts"))
         ],
         "first_tag_title": post.tags.first().title,
     }
@@ -33,7 +35,8 @@ def serialize_post_optimized(post):
         "published_at": post.published_at,
         "slug": post.slug,
         "tags": [
-            serialize_tag_optimized(tag) for tag in post.tags.fetch_with_post_count()
+            serialize_tag_optimized(tag)
+            for tag in post.tags.annotate(posts_count=Count("posts"))
         ],
         "first_tag_title": post.tags.first().title,
     }
@@ -68,7 +71,7 @@ def index(request):
         .fetch_with_comments_count()
     )
 
-    most_popular_tags = Tag.objects.popular()[:5].fetch_with_post_count()
+    most_popular_tags = Tag.objects.popular()[:5].annotate(posts_count=Count("posts"))
 
     context = {
         "most_popular_posts": [
@@ -95,7 +98,7 @@ def post_detail(request, slug):
 
     likes_count = post.likes.all().count()
 
-    related_tags = post.tags.popular().fetch_with_post_count()
+    related_tags = post.tags.popular().annotate(posts_count=Count("posts"))
 
     serialized_post = {
         "title": post.title,
@@ -109,7 +112,7 @@ def post_detail(request, slug):
         "tags": [serialize_tag_optimized(tag) for tag in related_tags],
     }
 
-    most_popular_tags = Tag.objects.popular()[:5].fetch_with_post_count()
+    most_popular_tags = Tag.objects.popular()[:5].annotate(posts_count=Count("posts"))
 
     most_popular_posts = (
         Post.objects.popular()
@@ -130,7 +133,7 @@ def post_detail(request, slug):
 def tag_filter(request, tag_title):
     tag = Tag.objects.get(title=tag_title)
 
-    most_popular_tags = Tag.objects.popular()[:5].fetch_with_post_count()
+    most_popular_tags = Tag.objects.popular()[:5].annotate(posts_count=Count("posts"))
 
     most_popular_posts = (
         Post.objects.popular()
